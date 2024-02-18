@@ -10,24 +10,45 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model School {
+  id                Int       @id @default(autoincrement())
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  cnpjEscola        String    @unique @map("cnpj_escola")
+  nomeFantasia      String    @map("nome_fantasia")
+  descricaoCurso    String    @map("descricao_curso")
+  siglaCurso        String    @map("sigla_curso")
+  tipoCurso         String    @map("tipo_curso")
+  dataValidadeCurso DateTime  @map("data_validade_curso")
+  situacaoCurso     String    @map("situacao_curso")
+  coordenadorCurso  String    @map("coordenador_curso")
+  articles          Article[]
+}
+
 model Article {
   id          Int      @id @default(autoincrement())
   title       String   @unique
   description String?
-  body        String
+  content     String   @map("content")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
   published   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  author      User?    @relation(fields: [authorId], references: [id])
-  authorId    Int?
+  publishedAt DateTime @map("published_at")
+
+  schoolId    Int      @map("school_id")
+  school      School   @relation(fields: [schoolId], references: [id])
+
+  userId      Int      @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
 }
 
+
 model User {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String?
-  email     String    @unique
+  email     String   @unique
   password  String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   articles  Article[]
 }

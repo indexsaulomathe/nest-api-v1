@@ -23,7 +23,7 @@ export class ArticlesService {
     return this.prisma.article.findUnique({
       where: { id },
       include: {
-        author: true,
+        user: true,
       },
     });
   }
