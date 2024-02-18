@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaClient } from '@prisma/client';
 import { exec } from 'child_process';
+import * as NodeCache from 'node-cache';
 
 enum ApiStatus {
   Online = 'online',
@@ -13,6 +14,9 @@ interface StatusObject {
   status: ApiStatus;
   service: string;
 }
+
+const cache = new NodeCache({ stdTTL: 86400 });
+const CACHE_TTL = 86400;
 
 @Controller()
 export class AppController {
@@ -26,14 +30,35 @@ export class AppController {
   }
 
   private async getStatusObjects(): Promise<StatusObject[]> {
-    const databaseStatusPromise = this.checkDatabaseConnection();
-    const testsStatusPromise = this.runTests();
+    const shouldRunTests = await this.areTestsToBeRunToday();
+
+    let databaseStatusPromise;
+    let testsStatusPromise;
+
+    if (shouldRunTests) {
+      databaseStatusPromise = this.checkDatabaseConnection();
+      testsStatusPromise = this.runTests();
+
+      // Armazenando o status dos testes e a conectividade do banco de dados na cache
+      const [databaseStatus, testsStatus] = await Promise.all([
+        databaseStatusPromise,
+        testsStatusPromise,
+      ]);
+      cache.set('Database', databaseStatus);
+      cache.set('Tests', testsStatus);
+      cache.set('testsLastRun', new Date(), CACHE_TTL);
+    } else {
+      // Recuperando o status dos testes e a conectividade do banco de dados da cache
+      databaseStatusPromise = Promise.resolve(cache.get('Database'));
+      testsStatusPromise = Promise.resolve(cache.get('Tests'));
+    }
 
     try {
       const [databaseStatus, testsStatus] = await Promise.all([
         databaseStatusPromise,
         testsStatusPromise,
       ]);
+
       return [
         { status: databaseStatus, service: 'Database' },
         { status: testsStatus, service: 'Tests' },
@@ -42,6 +67,19 @@ export class AppController {
       console.error('Error getting status:', error);
       return [];
     }
+  }
+
+  private async areTestsToBeRunToday(): Promise<boolean> {
+    const testsLastRun: Date | undefined = cache.get('testsLastRun');
+
+    if (testsLastRun === undefined) {
+      return true;
+    }
+
+    const today = new Date();
+    const lastRunDate = new Date(testsLastRun);
+
+    return today.getDate() !== lastRunDate.getDate();
   }
 
   private async checkDatabaseConnection(): Promise<ApiStatus> {

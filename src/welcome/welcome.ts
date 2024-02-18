@@ -27,7 +27,7 @@ export const getWelcomeMessage = (
     return `
           <div class="status-container">
             <p class="service">${service}:</p>
-            <p class="status ${statusClass}">${status.toUpperCase()}</p>
+            <p class="status ${statusClass}">${status ? status.toUpperCase() : ''}</p>
           </div>
     `;
   });
