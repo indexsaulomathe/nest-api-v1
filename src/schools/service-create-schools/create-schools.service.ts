@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { School } from '@prisma/client';
 import { CreateSchoolDto } from '../dto/create-school.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -12,14 +12,20 @@ export class CreateSchoolsService {
 
   async create(createSchoolDto: CreateSchoolDto): Promise<School> {
     try {
-      const createdSchool = await this.prismaService.school.create({
-        data: { ...createSchoolDto },
-      });
-
-      return createdSchool;
+      return await this.prismaService.school.create({ data: createSchoolDto });
     } catch (error) {
-      this.logger.error(`Error creating school: ${error.message}`);
-      throw new NotFoundException('Failed to create school');
+      this.handleError(error);
     }
+  }
+
+  private handleError(error: any): never {
+    this.logger.error(`Error creating school: ${error.message}`);
+    if (error.code === 'P2002' && error.meta?.target?.includes('cnpj_escola')) {
+      throw new InternalServerErrorException(
+        'Failed to create school: CNPJ already exists',
+      );
+    }
+
+    throw new InternalServerErrorException('Failed to create school');
   }
 }

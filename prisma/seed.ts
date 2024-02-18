@@ -1,93 +1,106 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
-// initialize Prisma Client
+// Initialize Prisma Client
 const prisma = new PrismaClient();
-
 const roundsOfHashing = 10;
 
-async function main() {
-  const passwordSabin = await bcrypt.hash('password-sabin', roundsOfHashing);
-  const passwordAlex = await bcrypt.hash('password-alex', roundsOfHashing);
-
-  // create two dummy users
-  const user1 = await prisma.user.upsert({
-    where: { email: 'sabin@adams.com' },
-    update: {
-      password: passwordSabin,
-    },
-    create: {
-      email: 'sabin@adams.com',
+async function seedUsers() {
+  const userData = [
+    {
       name: 'Sabin Adams',
-      password: passwordSabin,
+      email: 'sabin@adams.com',
+      password: 'password-sabin',
     },
-  });
-
-  const user2 = await prisma.user.upsert({
-    where: { email: 'alex@ruheni.com' },
-    update: {
-      password: passwordAlex,
-    },
-    create: {
-      email: 'alex@ruheni.com',
+    {
       name: 'Alex Ruheni',
-      password: passwordAlex,
+      email: 'alex@ruheni.com',
+      password: 'password-alex',
     },
-  });
+  ];
 
-  // create three dummy articles
-  const post1 = await prisma.article.upsert({
-    where: { title: 'Prisma Adds Support for MongoDB' },
-    update: {
-      authorId: user1.id,
-    },
-    create: {
-      title: 'Prisma Adds Support for MongoDB',
-      body: 'Support for MongoDB has been one of the most requested features since the initial release of...',
-      description:
-        "We are excited to share that today's Prisma ORM release adds stable support for MongoDB!",
-      published: false,
-      authorId: user1.id,
-    },
-  });
+  const hashedUserData = await Promise.all(
+    userData.map(async (user) => ({
+      ...user,
+      password: await bcrypt.hash(user.password, roundsOfHashing),
+    })),
+  );
 
-  const post2 = await prisma.article.upsert({
-    where: { title: "What's new in Prisma? (Q1/22)" },
-    update: {
-      authorId: user2.id,
-    },
-    create: {
-      title: "What's new in Prisma? (Q1/22)",
-      body: 'Our engineers have been working hard, issuing new releases with many improvements...',
-      description:
-        'Learn about everything in the Prisma ecosystem and community from January to March 2022.',
-      published: true,
-      authorId: user2.id,
-    },
-  });
-
-  const post3 = await prisma.article.upsert({
-    where: { title: 'Prisma Client Just Became a Lot More Flexible' },
-    update: {},
-    create: {
-      title: 'Prisma Client Just Became a Lot More Flexible',
-      body: 'Prisma Client extensions provide a powerful new way to add functionality to Prisma in a type-safe manner...',
-      description:
-        'This article will explore various ways you can use Prisma Client extensions to add custom functionality to Prisma Client..',
-      published: true,
-    },
-  });
-
-  console.log({ user1, user2, post1, post2, post3 });
+  return Promise.all(
+    hashedUserData.map((user) =>
+      prisma.user.upsert({
+        where: { email: user.email },
+        update: { password: user.password },
+        create: user,
+      }),
+    ),
+  );
 }
 
-// execute the main function
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    // close Prisma Client at the end
+async function seedArticles() {
+  const articlesData = [
+    {
+      title: 'Prisma Adds Support for MongoDB',
+      description:
+        "We are excited to share that today's Prisma ORM release adds stable support for MongoDB!",
+      content:
+        'Support for MongoDB has been one of the most requested features since the initial release of...',
+      published: false,
+      publishedAt: null,
+      school: { connect: { id: 1 } },
+      user: { connect: { id: 1 } },
+    },
+    {
+      title: "What's new in Prisma? (Q1/22)",
+      description:
+        'Learn about everything in the Prisma ecosystem and community from January to March 2022.',
+      content:
+        'Our engineers have been working hard, issuing new releases with many improvements...',
+      published: true,
+      publishedAt: new Date(),
+      school: { connect: { id: 2 } },
+      user: { connect: { id: 2 } },
+    },
+    {
+      title: 'Prisma Client Just Became a Lot More Flexible',
+      description:
+        'This article will explore various ways you can use Prisma Client extensions to add custom functionality to Prisma Client.',
+      content:
+        'Prisma Client extensions provide a powerful new way to add functionality to Prisma in a type-safe manner...',
+      published: true,
+      publishedAt: new Date(),
+    },
+  ];
+
+  return Promise.all(
+    articlesData.map((articleData) =>
+      prisma.article.upsert({
+        where: { title: articleData.title },
+        update: {},
+        create: {
+          ...articleData,
+          school: { connect: { id: 1 } },
+          user: { connect: { id: 1 } },
+        },
+      }),
+    ),
+  );
+}
+
+async function seedDatabase() {
+  await seedUsers();
+  await seedArticles();
+}
+
+async function main() {
+  try {
+    await seedDatabase();
+    console.log('Seed completed successfully.');
+  } catch (error) {
+    console.error('Error seeding database:', error);
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+main();

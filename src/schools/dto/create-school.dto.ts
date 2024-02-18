@@ -1,4 +1,4 @@
-import { IsString, IsDate } from 'class-validator';
+import { IsString, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateSchoolDto {
@@ -37,10 +37,10 @@ export class CreateSchoolDto {
   })
   tipoCurso: string;
 
-  @IsDate({ message: 'Invalid date format. Use a valid date string' })
+  @IsDateString({}, { message: 'Invalid date format. Use a valid date string' })
   @ApiProperty({
     description: 'Validity date of the course',
-    example: '/Date(1721185200000)/',
+    example: '2024-05-17T12:00:00.000Z',
   })
   dataValidadeCurso: Date;
 
